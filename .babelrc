@@ -8,6 +8,6 @@
 
         // This makes sure that the regenerator runtime is available to
         // the transpiled code.
-        "transform-runtime",
+        // "transform-runtime",
     ],
 }

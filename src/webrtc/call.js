@@ -19,9 +19,22 @@ limitations under the License.
  * This is an internal module. See {@link createNewMatrixCall} for the public API.
  * @module webrtc/call
  */
-const utils = require("../utils");
-const EventEmitter = require("events").EventEmitter;
-const DEBUG = true;  // set true to enable console logging.
+
+var _regenerator = require("babel-runtime/regenerator");
+
+var _regenerator2 = _interopRequireDefault(_regenerator);
+
+var _bluebird = require("bluebird");
+
+var _create = require("babel-runtime/core-js/object/create");
+
+var _create2 = _interopRequireDefault(_create);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+var utils = require("../utils");
+var EventEmitter = require("events").EventEmitter;
+var DEBUG = true; // set true to enable console logging.
 
 // events: hangup, error(err), replaced(call), state(state, oldState)
 
@@ -62,10 +75,10 @@ function MatrixCall(opts) {
     this.turnServers = opts.turnServers || [];
     if (this.turnServers.length === 0) {
         this.turnServers.push({
-            urls: [MatrixCall.FALLBACK_STUN_SERVER],
+            urls: [MatrixCall.FALLBACK_STUN_SERVER]
         });
     }
-    utils.forEach(this.turnServers, function(server) {
+    utils.forEach(this.turnServers, function (server) {
         utils.checkObjectHasKeys(server, ["urls"]);
     });
 
@@ -83,7 +96,7 @@ function MatrixCall(opts) {
     // need to be serialised into a given queue.  Store this per-MatrixCall on the
     // assumption that multiple matrix calls will never compete for control of the
     // same DOM elements.
-    this.mediaPromises = Object.create(null);
+    this.mediaPromises = (0, _create2.default)(null);
 
     this.screenSharingStream = null;
 
@@ -125,7 +138,7 @@ utils.inherits(MatrixCall, EventEmitter);
  * Place a voice call to this room.
  * @throws If you have not specified a listener for 'error' events.
  */
-MatrixCall.prototype.placeVoiceCall = function() {
+MatrixCall.prototype.placeVoiceCall = function () {
     debuglog("placeVoiceCall");
     checkForErrorListener(this);
     _placeCallWithConstraints(this, _getUserMediaVideoContraints('voice'));
@@ -140,7 +153,7 @@ MatrixCall.prototype.placeVoiceCall = function() {
  * to render the local camera preview.
  * @throws If you have not specified a listener for 'error' events.
  */
-MatrixCall.prototype.placeVideoCall = function(remoteVideoElement, localVideoElement) {
+MatrixCall.prototype.placeVideoCall = function (remoteVideoElement, localVideoElement) {
     debuglog("placeVideoCall");
     checkForErrorListener(this);
     this.localVideoElement = localVideoElement;
@@ -160,29 +173,23 @@ MatrixCall.prototype.placeVideoCall = function(remoteVideoElement, localVideoEle
  * to render the local camera preview.
  * @throws If you have not specified a listener for 'error' events.
  */
-MatrixCall.prototype.placeScreenSharingCall =
-    function(remoteVideoElement, localVideoElement) {
+MatrixCall.prototype.placeScreenSharingCall = function (remoteVideoElement, localVideoElement) {
     debuglog("placeScreenSharingCall");
     checkForErrorListener(this);
-    const screenConstraints = _getScreenSharingConstraints(this);
+    var screenConstraints = _getScreenSharingConstraints(this);
     if (!screenConstraints) {
         return;
     }
     this.localVideoElement = localVideoElement;
     this.remoteVideoElement = remoteVideoElement;
-    const self = this;
-    this.webRtc.getUserMedia(screenConstraints, function(stream) {
+    var self = this;
+    this.webRtc.getUserMedia(screenConstraints, function (stream) {
         self.screenSharingStream = stream;
         debuglog("Got screen stream, requesting audio stream...");
-        const audioConstraints = _getUserMediaVideoContraints('voice');
+        var audioConstraints = _getUserMediaVideoContraints('voice');
         _placeCallWithConstraints(self, audioConstraints);
-    }, function(err) {
-        self.emit("error",
-            callError(
-                MatrixCall.ERR_NO_USER_MEDIA,
-                "Failed to get screen-sharing stream: " + err,
-            ),
-        );
+    }, function (err) {
+        self.emit("error", callError(MatrixCall.ERR_NO_USER_MEDIA, "Failed to get screen-sharing stream: " + err));
     });
     this.type = 'video';
     _tryPlayRemoteStream(this);
@@ -194,7 +201,7 @@ MatrixCall.prototype.placeScreenSharingCall =
  * @param {Element} element HTMLMediaElement element to play
  * @param {string} queueId Arbitrary ID to track the chain of promises to be used
  */
-MatrixCall.prototype.playElement = function(element, queueId) {
+MatrixCall.prototype.playElement = function (element, queueId) {
     console.log("queuing play on " + queueId + " and element " + element);
     // XXX: FIXME: Does this leak elements, given the old promises
     // may hang around and retain a reference to them?
@@ -204,14 +211,13 @@ MatrixCall.prototype.playElement = function(element, queueId) {
         // rooms before answering an inbound call), and throw unhandled exceptions.
         // However, we should soldier on as best we can even if they fail, given
         // these failures may be non-fatal (as in the case of unmounts)
-        this.mediaPromises[queueId] =
-            this.mediaPromises[queueId].then(function() {
-                console.log("previous promise completed for " + queueId);
-                return element.play();
-            }, function() {
-                console.log("previous promise failed for " + queueId);
-                return element.play();
-            });
+        this.mediaPromises[queueId] = this.mediaPromises[queueId].then(function () {
+            console.log("previous promise completed for " + queueId);
+            return element.play();
+        }, function () {
+            console.log("previous promise failed for " + queueId);
+            return element.play();
+        });
     } else {
         this.mediaPromises[queueId] = element.play();
     }
@@ -223,17 +229,16 @@ MatrixCall.prototype.playElement = function(element, queueId) {
  * @param {Element} element HTMLMediaElement element to pause
  * @param {string} queueId Arbitrary ID to track the chain of promises to be used
  */
-MatrixCall.prototype.pauseElement = function(element, queueId) {
+MatrixCall.prototype.pauseElement = function (element, queueId) {
     console.log("queuing pause on " + queueId + " and element " + element);
     if (this.mediaPromises[queueId]) {
-        this.mediaPromises[queueId] =
-            this.mediaPromises[queueId].then(function() {
-                console.log("previous promise completed for " + queueId);
-                return element.pause();
-            }, function() {
-                console.log("previous promise failed for " + queueId);
-                return element.pause();
-            });
+        this.mediaPromises[queueId] = this.mediaPromises[queueId].then(function () {
+            console.log("previous promise completed for " + queueId);
+            return element.pause();
+        }, function () {
+            console.log("previous promise failed for " + queueId);
+            return element.pause();
+        });
     } else {
         // pause doesn't actually return a promise, but do this for symmetry
         // and just in case it does in future.
@@ -249,18 +254,16 @@ MatrixCall.prototype.pauseElement = function(element, queueId) {
  * @param {MediaStream} srcObject the srcObject attribute value to assign to the element
  * @param {string} queueId Arbitrary ID to track the chain of promises to be used
  */
-MatrixCall.prototype.assignElement = function(element, srcObject, queueId) {
-    console.log("queuing assign on " + queueId + " element " + element + " for " +
-        srcObject);
+MatrixCall.prototype.assignElement = function (element, srcObject, queueId) {
+    console.log("queuing assign on " + queueId + " element " + element + " for " + srcObject);
     if (this.mediaPromises[queueId]) {
-        this.mediaPromises[queueId] =
-            this.mediaPromises[queueId].then(function() {
-                console.log("previous promise completed for " + queueId);
-                element.srcObject = srcObject;
-            }, function() {
-                console.log("previous promise failed for " + queueId);
-                element.srcObject = srcObject;
-            });
+        this.mediaPromises[queueId] = this.mediaPromises[queueId].then(function () {
+            console.log("previous promise completed for " + queueId);
+            element.srcObject = srcObject;
+        }, function () {
+            console.log("previous promise failed for " + queueId);
+            element.srcObject = srcObject;
+        });
     } else {
         element.srcObject = srcObject;
     }
@@ -270,7 +273,7 @@ MatrixCall.prototype.assignElement = function(element, srcObject, queueId) {
  * Retrieve the local <code>&lt;video&gt;</code> DOM element.
  * @return {Element} The dom element
  */
-MatrixCall.prototype.getLocalVideoElement = function() {
+MatrixCall.prototype.getLocalVideoElement = function () {
     return this.localVideoElement;
 };
 
@@ -279,7 +282,7 @@ MatrixCall.prototype.getLocalVideoElement = function() {
  * used for playing back video capable streams.
  * @return {Element} The dom element
  */
-MatrixCall.prototype.getRemoteVideoElement = function() {
+MatrixCall.prototype.getRemoteVideoElement = function () {
     return this.remoteVideoElement;
 };
 
@@ -288,7 +291,7 @@ MatrixCall.prototype.getRemoteVideoElement = function() {
  * used for playing back audio only streams.
  * @return {Element} The dom element
  */
-MatrixCall.prototype.getRemoteAudioElement = function() {
+MatrixCall.prototype.getRemoteAudioElement = function () {
     return this.remoteAudioElement;
 };
 
@@ -297,20 +300,24 @@ MatrixCall.prototype.getRemoteAudioElement = function() {
  * video will be rendered to it immediately.
  * @param {Element} element The <code>&lt;video&gt;</code> DOM element.
  */
-MatrixCall.prototype.setLocalVideoElement = function(element) {
+MatrixCall.prototype.setLocalVideoElement = function (element) {
+    var _this = this;
+
     this.localVideoElement = element;
 
     if (element && this.localAVStream && this.type === 'video') {
-        element.autoplay = true;
-        this.assignElement(element, this.localAVStream, "localVideo");
-        element.muted = true;
-        const self = this;
-        setTimeout(function() {
-            const vel = self.getLocalVideoElement();
-            if (vel.play) {
-                self.playElement(vel, "localVideo");
-            }
-        }, 0);
+        (function () {
+            element.autoplay = true;
+            _this.assignElement(element, _this.localAVStream, "localVideo");
+            element.muted = true;
+            var self = _this;
+            setTimeout(function () {
+                var vel = self.getLocalVideoElement();
+                if (vel.play) {
+                    self.playElement(vel, "localVideo");
+                }
+            }, 0);
+        })();
     }
 };
 
@@ -319,7 +326,7 @@ MatrixCall.prototype.setLocalVideoElement = function(element) {
  * the first received video-capable stream will be rendered to it immediately.
  * @param {Element} element The <code>&lt;video&gt;</code> DOM element.
  */
-MatrixCall.prototype.setRemoteVideoElement = function(element) {
+MatrixCall.prototype.setRemoteVideoElement = function (element) {
     this.remoteVideoElement = element;
     _tryPlayRemoteStream(this);
 };
@@ -330,7 +337,7 @@ MatrixCall.prototype.setRemoteVideoElement = function(element) {
  * The audio will *not* be rendered from the remoteVideoElement.
  * @param {Element} element The <code>&lt;video&gt;</code> DOM element.
  */
-MatrixCall.prototype.setRemoteAudioElement = function(element) {
+MatrixCall.prototype.setRemoteAudioElement = function (element) {
     this.remoteVideoElement.muted = true;
     this.remoteAudioElement = element;
     this.remoteAudioElement.muted = false;
@@ -342,16 +349,12 @@ MatrixCall.prototype.setRemoteAudioElement = function(element) {
  * @protected
  * @param {MatrixEvent} event The m.call.invite event
  */
-MatrixCall.prototype._initWithInvite = function(event) {
+MatrixCall.prototype._initWithInvite = function (event) {
     this.msg = event.getContent();
     this.peerConn = _createPeerConnection(this);
-    const self = this;
+    var self = this;
     if (this.peerConn) {
-        this.peerConn.setRemoteDescription(
-            new this.webRtc.RtcSessionDescription(this.msg.offer),
-            hookCallback(self, self._onSetRemoteDescriptionSuccess),
-            hookCallback(self, self._onSetRemoteDescriptionError),
-        );
+        this.peerConn.setRemoteDescription(new this.webRtc.RtcSessionDescription(this.msg.offer), hookCallback(self, self._onSetRemoteDescriptionSuccess), hookCallback(self, self._onSetRemoteDescriptionError));
     }
     setState(this, 'ringing');
     this.direction = 'inbound';
@@ -359,18 +362,14 @@ MatrixCall.prototype._initWithInvite = function(event) {
     // firefox and OpenWebRTC's RTCPeerConnection doesn't add streams until it
     // starts getting media on them so we need to figure out whether a video
     // channel has been offered by ourselves.
-    if (
-        this.msg.offer &&
-        this.msg.offer.sdp &&
-        this.msg.offer.sdp.indexOf('m=video') > -1
-    ) {
+    if (this.msg.offer && this.msg.offer.sdp && this.msg.offer.sdp.indexOf('m=video') > -1) {
         this.type = 'video';
     } else {
         this.type = 'voice';
     }
 
     if (event.getAge()) {
-        setTimeout(function() {
+        setTimeout(function () {
             if (self.state == 'ringing') {
                 debuglog("Call invite has expired. Hanging up.");
                 self.hangupParty = 'remote'; // effectively
@@ -390,7 +389,7 @@ MatrixCall.prototype._initWithInvite = function(event) {
  * @protected
  * @param {MatrixEvent} event The m.call.hangup event
  */
-MatrixCall.prototype._initWithHangup = function(event) {
+MatrixCall.prototype._initWithHangup = function (event) {
     // perverse as it may seem, sometimes we want to instantiate a call with a
     // hangup message (because when getting the state of the room on load, events
     // come in reverse order and we want to remember that a call has been hung up)
@@ -401,9 +400,9 @@ MatrixCall.prototype._initWithHangup = function(event) {
 /**
  * Answer a call.
  */
-MatrixCall.prototype.answer = function() {
+MatrixCall.prototype.answer = function () {
     debuglog("Answering call %s of type %s", this.callId, this.type);
-    const self = this;
+    var self = this;
 
     if (self._answerContent) {
         self._sendAnswer();
@@ -411,11 +410,7 @@ MatrixCall.prototype.answer = function() {
     }
 
     if (!this.localAVStream && !this.waitForLocalAVStream) {
-        this.webRtc.getUserMedia(
-            _getUserMediaVideoContraints(this.type),
-            hookCallback(self, self._maybeGotUserMediaForAnswer),
-            hookCallback(self, self._maybeGotUserMediaForAnswer),
-        );
+        this.webRtc.getUserMedia(_getUserMediaVideoContraints(this.type), hookCallback(self, self._maybeGotUserMediaForAnswer), hookCallback(self, self._maybeGotUserMediaForAnswer));
         setState(this, 'wait_local_media');
     } else if (this.localAVStream) {
         this._maybeGotUserMediaForAnswer(this.localAVStream);
@@ -430,7 +425,7 @@ MatrixCall.prototype.answer = function() {
  * @protected
  * @param {MatrixCall} newCall The new call.
  */
-MatrixCall.prototype._replacedBy = function(newCall) {
+MatrixCall.prototype._replacedBy = function (newCall) {
     debuglog(this.callId + " being replaced by " + newCall.callId);
     if (this.state == 'wait_local_media') {
         debuglog("Telling new call to wait for local media");
@@ -438,11 +433,11 @@ MatrixCall.prototype._replacedBy = function(newCall) {
     } else if (this.state == 'create_offer') {
         debuglog("Handing local stream to new call");
         newCall._maybeGotUserMediaForAnswer(this.localAVStream);
-        delete(this.localAVStream);
+        delete this.localAVStream;
     } else if (this.state == 'invite_sent') {
         debuglog("Handing local stream to new call");
         newCall._maybeGotUserMediaForAnswer(this.localAVStream);
-        delete(this.localAVStream);
+        delete this.localAVStream;
     }
     newCall.localVideoElement = this.localVideoElement;
     newCall.remoteVideoElement = this.remoteVideoElement;
@@ -457,15 +452,15 @@ MatrixCall.prototype._replacedBy = function(newCall) {
  * @param {string} reason The reason why the call is being hung up.
  * @param {boolean} suppressEvent True to suppress emitting an event.
  */
-MatrixCall.prototype.hangup = function(reason, suppressEvent) {
+MatrixCall.prototype.hangup = function (reason, suppressEvent) {
     if (this.state == 'ended') return;
 
     debuglog("Ending call " + this.callId);
     terminate(this, "local", reason, !suppressEvent);
-    const content = {
+    var content = {
         version: 0,
         call_id: this.callId,
-        reason: reason,
+        reason: reason
     };
     sendEvent(this, 'm.call.hangup', content);
 };
@@ -474,7 +469,7 @@ MatrixCall.prototype.hangup = function(reason, suppressEvent) {
  * Set whether the local video preview should be muted or not.
  * @param {boolean} muted True to mute the local video.
  */
-MatrixCall.prototype.setLocalVideoMuted = function(muted) {
+MatrixCall.prototype.setLocalVideoMuted = function (muted) {
     if (!this.localAVStream) {
         return;
     }
@@ -490,7 +485,7 @@ MatrixCall.prototype.setLocalVideoMuted = function(muted) {
  * @return {Boolean} True if the local preview video is muted, else false
  * (including if the call is not set up yet).
  */
-MatrixCall.prototype.isLocalVideoMuted = function() {
+MatrixCall.prototype.isLocalVideoMuted = function () {
     if (!this.localAVStream) {
         return false;
     }
@@ -501,7 +496,7 @@ MatrixCall.prototype.isLocalVideoMuted = function() {
  * Set whether the microphone should be muted or not.
  * @param {boolean} muted True to mute the mic.
  */
-MatrixCall.prototype.setMicrophoneMuted = function(muted) {
+MatrixCall.prototype.setMicrophoneMuted = function (muted) {
     if (!this.localAVStream) {
         return;
     }
@@ -517,7 +512,7 @@ MatrixCall.prototype.setMicrophoneMuted = function(muted) {
  * @return {Boolean} True if the mic is muted, else false (including if the call
  * is not set up yet).
  */
-MatrixCall.prototype.isMicrophoneMuted = function() {
+MatrixCall.prototype.isMicrophoneMuted = function () {
     if (!this.localAVStream) {
         return false;
     }
@@ -529,7 +524,7 @@ MatrixCall.prototype.isMicrophoneMuted = function() {
  * @private
  * @param {Object} stream
  */
-MatrixCall.prototype._maybeGotUserMediaForInvite = function(stream) {
+MatrixCall.prototype._maybeGotUserMediaForInvite = function (stream) {
     if (this.successor) {
         this.successor._maybeGotUserMediaForAnswer(stream);
         return;
@@ -538,30 +533,29 @@ MatrixCall.prototype._maybeGotUserMediaForInvite = function(stream) {
         return;
     }
     debuglog("_maybeGotUserMediaForInvite -> " + this.type);
-    const self = this;
+    var self = this;
 
-    const error = stream;
-    const constraints = {
+    var error = stream;
+    var constraints = {
         'mandatory': {
             'OfferToReceiveAudio': true,
-            'OfferToReceiveVideo': self.type === 'video',
-        },
+            'OfferToReceiveVideo': self.type === 'video'
+        }
     };
     if (stream instanceof MediaStream) {
-        const videoEl = this.getLocalVideoElement();
+        var videoEl = this.getLocalVideoElement();
 
         if (videoEl && this.type == 'video') {
             videoEl.autoplay = true;
             if (this.screenSharingStream) {
-                debuglog("Setting screen sharing stream to the local video" +
-                    " element");
+                debuglog("Setting screen sharing stream to the local video" + " element");
                 this.assignElement(videoEl, this.screenSharingStream, "localVideo");
             } else {
                 this.assignElement(videoEl, stream, "localVideo");
             }
             videoEl.muted = true;
-            setTimeout(function() {
-                const vel = self.getLocalVideoElement();
+            setTimeout(function () {
+                var vel = self.getLocalVideoElement();
                 if (vel.play) {
                     self.playElement(vel, "localVideo");
                 }
@@ -579,8 +573,7 @@ MatrixCall.prototype._maybeGotUserMediaForInvite = function(stream) {
         this.peerConn = _createPeerConnection(this);
         this.peerConn.addStream(stream);
     } else if (error.name === 'PermissionDeniedError') {
-        debuglog('User denied access to camera/microphone.' +
-            ' Or possibly you are using an insecure domain. Receiving only.');
+        debuglog('User denied access to camera/microphone.' + ' Or possibly you are using an insecure domain. Receiving only.');
         this.peerConn = _createPeerConnection(this);
     } else {
         debuglog('Failed to getUserMedia.');
@@ -588,32 +581,30 @@ MatrixCall.prototype._maybeGotUserMediaForInvite = function(stream) {
         return;
     }
 
-    this.peerConn.createOffer(
-        hookCallback(self, self._gotLocalOffer),
-        hookCallback(self, self._getLocalOfferFailed),
-        constraints,
-    );
+    this.peerConn.createOffer(hookCallback(self, self._gotLocalOffer), hookCallback(self, self._getLocalOfferFailed), constraints);
     setState(self, 'create_offer');
 };
 
-MatrixCall.prototype._sendAnswer = function(stream) {
-    sendEvent(this, 'm.call.answer', this._answerContent).then(() => {
-        setState(this, 'connecting');
+MatrixCall.prototype._sendAnswer = function (stream) {
+    var _this2 = this;
+
+    sendEvent(this, 'm.call.answer', this._answerContent).then(function () {
+        setState(_this2, 'connecting');
         // If this isn't the first time we've tried to send the answer,
         // we may have candidates queued up, so send them now.
-        _sendCandidateQueue(this);
-    }).catch((error) => {
+        _sendCandidateQueue(_this2);
+    }).catch(function (error) {
         // We've failed to answer: back to the ringing state
-        setState(this, 'ringing');
-        this.client.cancelPendingEvent(error.event);
+        setState(_this2, 'ringing');
+        _this2.client.cancelPendingEvent(error.event);
 
-        let code = MatrixCall.ERR_SEND_ANSWER;
-        let message = "Failed to send answer";
+        var code = MatrixCall.ERR_SEND_ANSWER;
+        var message = "Failed to send answer";
         if (error.name == 'UnknownDeviceError') {
             code = MatrixCall.ERR_UNKNOWN_DEVICES;
             message = "Unknown devices present in the room";
         }
-        this.emit("error", callError(code, message));
+        _this2.emit("error", callError(code, message));
         throw error;
     });
 };
@@ -623,22 +614,22 @@ MatrixCall.prototype._sendAnswer = function(stream) {
  * @private
  * @param {Object} stream
  */
-MatrixCall.prototype._maybeGotUserMediaForAnswer = function(stream) {
-    const self = this;
+MatrixCall.prototype._maybeGotUserMediaForAnswer = function (stream) {
+    var self = this;
     if (self.state == 'ended') {
         return;
     }
 
-    const error = stream;
+    var error = stream;
     if (stream instanceof MediaStream) {
-        const localVidEl = self.getLocalVideoElement();
+        var localVidEl = self.getLocalVideoElement();
 
         if (localVidEl && self.type == 'video') {
             localVidEl.autoplay = true;
             this.assignElement(localVidEl, stream, "localVideo");
             localVidEl.muted = true;
-            setTimeout(function() {
-                const vel = self.getLocalVideoElement();
+            setTimeout(function () {
+                var vel = self.getLocalVideoElement();
                 if (vel.play) {
                     self.playElement(vel, "localVideo");
                 }
@@ -649,36 +640,35 @@ MatrixCall.prototype._maybeGotUserMediaForAnswer = function(stream) {
         setTracksEnabled(stream.getAudioTracks(), true);
         self.peerConn.addStream(stream);
     } else if (error.name === 'PermissionDeniedError') {
-        debuglog('User denied access to camera/microphone.' +
-            ' Or possibly you are using an insecure domain. Receiving only.');
+        debuglog('User denied access to camera/microphone.' + ' Or possibly you are using an insecure domain. Receiving only.');
     } else {
         debuglog('Failed to getUserMedia.');
         this._getUserMediaFailed(error);
         return;
     }
 
-    const constraints = {
+    var constraints = {
         'mandatory': {
             'OfferToReceiveAudio': true,
-            'OfferToReceiveVideo': self.type === 'video',
-        },
+            'OfferToReceiveVideo': self.type === 'video'
+        }
     };
-    self.peerConn.createAnswer(function(description) {
+    self.peerConn.createAnswer(function (description) {
         debuglog("Created answer: " + description);
-        self.peerConn.setLocalDescription(description, function() {
+        self.peerConn.setLocalDescription(description, function () {
             self._answerContent = {
                 version: 0,
                 call_id: self.callId,
                 answer: {
                     sdp: self.peerConn.localDescription.sdp,
-                    type: self.peerConn.localDescription.type,
-                },
+                    type: self.peerConn.localDescription.type
+                }
             };
             self._sendAnswer();
-        }, function() {
+        }, function () {
             debuglog("Error setting local description!");
         }, constraints);
-    }, function(err) {
+    }, function (err) {
         debuglog("Failed to create answer: " + err);
     });
     setState(self, 'create_answer');
@@ -689,21 +679,18 @@ MatrixCall.prototype._maybeGotUserMediaForAnswer = function(stream) {
  * @private
  * @param {Object} event
  */
-MatrixCall.prototype._gotLocalIceCandidate = function(event) {
+MatrixCall.prototype._gotLocalIceCandidate = function (event) {
     if (event.candidate) {
-        debuglog(
-            "Got local ICE " + event.candidate.sdpMid + " candidate: " +
-            event.candidate.candidate,
-        );
+        debuglog("Got local ICE " + event.candidate.sdpMid + " candidate: " + event.candidate.candidate);
 
         if (this.state == 'ended') return;
 
         // As with the offer, note we need to make a copy of this object, not
         // pass the original: that broke in Chrome ~m43.
-        const c = {
+        var c = {
             candidate: event.candidate.candidate,
             sdpMid: event.candidate.sdpMid,
-            sdpMLineIndex: event.candidate.sdpMLineIndex,
+            sdpMLineIndex: event.candidate.sdpMLineIndex
         };
         sendCandidate(this, c);
     }
@@ -714,17 +701,13 @@ MatrixCall.prototype._gotLocalIceCandidate = function(event) {
  * @protected
  * @param {Object} cand
  */
-MatrixCall.prototype._gotRemoteIceCandidate = function(cand) {
+MatrixCall.prototype._gotRemoteIceCandidate = function (cand) {
     if (this.state == 'ended') {
         //debuglog("Ignoring remote ICE candidate because call has ended");
         return;
     }
     debuglog("Got remote ICE " + cand.sdpMid + " candidate: " + cand.candidate);
-    this.peerConn.addIceCandidate(
-        new this.webRtc.RtcIceCandidate(cand),
-        function() {},
-        function(e) {},
-    );
+    this.peerConn.addIceCandidate(new this.webRtc.RtcIceCandidate(cand), function () { }, function (e) { });
 };
 
 /**
@@ -732,17 +715,13 @@ MatrixCall.prototype._gotRemoteIceCandidate = function(cand) {
  * @protected
  * @param {Object} msg
  */
-MatrixCall.prototype._receivedAnswer = function(msg) {
+MatrixCall.prototype._receivedAnswer = function (msg) {
     if (this.state == 'ended') {
         return;
     }
 
-    const self = this;
-    this.peerConn.setRemoteDescription(
-        new this.webRtc.RtcSessionDescription(msg.answer),
-        hookCallback(self, self._onSetRemoteDescriptionSuccess),
-        hookCallback(self, self._onSetRemoteDescriptionError),
-    );
+    var self = this;
+    this.peerConn.setRemoteDescription(new this.webRtc.RtcSessionDescription(msg.answer), hookCallback(self, self._onSetRemoteDescriptionSuccess), hookCallback(self, self._onSetRemoteDescriptionError));
     setState(self, 'connecting');
 };
 
@@ -751,18 +730,17 @@ MatrixCall.prototype._receivedAnswer = function(msg) {
  * @private
  * @param {Object} description
  */
-MatrixCall.prototype._gotLocalOffer = function(description) {
-    const self = this;
+MatrixCall.prototype._gotLocalOffer = function (description) {
+    var self = this;
     debuglog("Created offer: " + description);
 
     if (self.state == 'ended') {
-        debuglog("Ignoring newly created offer on call ID " + self.callId +
-            " because the call has ended");
+        debuglog("Ignoring newly created offer on call ID " + self.callId + " because the call has ended");
         return;
     }
 
-    self.peerConn.setLocalDescription(description, function() {
-        const content = {
+    self.peerConn.setLocalDescription(description, function () {
+        var content = {
             version: 0,
             call_id: self.callId,
             // OpenWebRTC appears to add extra stuff (like the DTLS fingerprint)
@@ -776,20 +754,20 @@ MatrixCall.prototype._gotLocalOffer = function(description) {
             // Chrome (as of about m43).
             offer: {
                 sdp: self.peerConn.localDescription.sdp,
-                type: self.peerConn.localDescription.type,
+                type: self.peerConn.localDescription.type
             },
-            lifetime: MatrixCall.CALL_TIMEOUT_MS,
+            lifetime: MatrixCall.CALL_TIMEOUT_MS
         };
-        sendEvent(self, 'm.call.invite', content).then(() => {
+        sendEvent(self, 'm.call.invite', content).then(function () {
             setState(self, 'invite_sent');
-            setTimeout(function() {
+            setTimeout(function () {
                 if (self.state == 'invite_sent') {
                     self.hangup('invite_timeout');
                 }
             }, MatrixCall.CALL_TIMEOUT_MS);
-        }).catch((error) => {
-            let code = MatrixCall.ERR_SEND_INVITE;
-            let message = "Failed to send invite";
+        }).catch(function (error) {
+            var code = MatrixCall.ERR_SEND_INVITE;
+            var message = "Failed to send invite";
             if (error.name == 'UnknownDeviceError') {
                 code = MatrixCall.ERR_UNKNOWN_DEVICES;
                 message = "Unknown devices present in the room";
@@ -800,7 +778,7 @@ MatrixCall.prototype._gotLocalOffer = function(description) {
             self.emit("error", callError(code, message));
             throw error;
         });
-    }, function() {
+    }, function () {
         debuglog("Error setting local description!");
     });
 };
@@ -810,11 +788,8 @@ MatrixCall.prototype._gotLocalOffer = function(description) {
  * @private
  * @param {Object} error
  */
-MatrixCall.prototype._getLocalOfferFailed = function(error) {
-    this.emit(
-        "error",
-        callError(MatrixCall.ERR_LOCAL_OFFER_FAILED, "Failed to start audio for call!"),
-    );
+MatrixCall.prototype._getLocalOfferFailed = function (error) {
+    this.emit("error", callError(MatrixCall.ERR_LOCAL_OFFER_FAILED, "Failed to start audio for call!"));
 };
 
 /**
@@ -822,33 +797,23 @@ MatrixCall.prototype._getLocalOfferFailed = function(error) {
  * @private
  * @param {Object} error
  */
-MatrixCall.prototype._getUserMediaFailed = function(error) {
+MatrixCall.prototype._getUserMediaFailed = function (error) {
     terminate(this, "local", 'user_media_failed', false);
-    this.emit(
-        "error",
-        callError(
-            MatrixCall.ERR_NO_USER_MEDIA,
-            "Couldn't start capturing media! Is your microphone set up and " +
-            "does this app have permission?",
-        ),
-    );
+    this.emit("error", callError(MatrixCall.ERR_NO_USER_MEDIA, "Couldn't start capturing media! Is your microphone set up and " + "does this app have permission?"));
 };
 
 /**
  * Internal
  * @private
  */
-MatrixCall.prototype._onIceConnectionStateChanged = function() {
+MatrixCall.prototype._onIceConnectionStateChanged = function () {
     if (this.state == 'ended') {
         return; // because ICE can still complete as we're ending the call
     }
-    debuglog(
-        "Ice connection state changed to: " + this.peerConn.iceConnectionState,
-    );
+    debuglog("Ice connection state changed to: " + this.peerConn.iceConnectionState);
     // ideally we'd consider the call to be connected when we get media but
     // chrome doesn't implement any of the 'onstarted' events yet
-    if (this.peerConn.iceConnectionState == 'completed' ||
-            this.peerConn.iceConnectionState == 'connected') {
+    if (this.peerConn.iceConnectionState == 'completed' || this.peerConn.iceConnectionState == 'connected') {
         setState(this, 'connected');
         this.didConnect = true;
     } else if (this.peerConn.iceConnectionState == 'failed') {
@@ -860,18 +825,15 @@ MatrixCall.prototype._onIceConnectionStateChanged = function() {
  * Internal
  * @private
  */
-MatrixCall.prototype._onSignallingStateChanged = function() {
-    debuglog(
-        "call " + this.callId + ": Signalling state changed to: " +
-        this.peerConn.signalingState,
-    );
+MatrixCall.prototype._onSignallingStateChanged = function () {
+    debuglog("call " + this.callId + ": Signalling state changed to: " + this.peerConn.signalingState);
 };
 
 /**
  * Internal
  * @private
  */
-MatrixCall.prototype._onSetRemoteDescriptionSuccess = function() {
+MatrixCall.prototype._onSetRemoteDescriptionSuccess = function () {
     debuglog("Set remote description");
 };
 
@@ -880,7 +842,7 @@ MatrixCall.prototype._onSetRemoteDescriptionSuccess = function() {
  * @private
  * @param {Object} e
  */
-MatrixCall.prototype._onSetRemoteDescriptionError = function(e) {
+MatrixCall.prototype._onSetRemoteDescriptionError = function (e) {
     debuglog("Failed to set remote description" + e);
 };
 
@@ -889,10 +851,10 @@ MatrixCall.prototype._onSetRemoteDescriptionError = function(e) {
  * @private
  * @param {Object} event
  */
-MatrixCall.prototype._onAddStream = function(event) {
+MatrixCall.prototype._onAddStream = function (event) {
     debuglog("Stream id " + event.stream.id + " added");
 
-    const s = event.stream;
+    var s = event.stream;
 
     if (s.getVideoTracks().length > 0) {
         this.type = 'video';
@@ -903,8 +865,8 @@ MatrixCall.prototype._onAddStream = function(event) {
         this.remoteAStream = s;
     }
 
-    const self = this;
-    forAllTracksOnStream(s, function(t) {
+    var self = this;
+    forAllTracksOnStream(s, function (t) {
         debuglog("Track id " + t.id + " added");
         // not currently implemented in chrome
         t.onstarted = hookCallback(self, self._onRemoteStreamTrackStarted);
@@ -933,7 +895,7 @@ MatrixCall.prototype._onAddStream = function(event) {
  * @private
  * @param {Object} event
  */
-MatrixCall.prototype._onRemoteStreamStarted = function(event) {
+MatrixCall.prototype._onRemoteStreamStarted = function (event) {
     setState(this, 'connected');
 };
 
@@ -942,7 +904,7 @@ MatrixCall.prototype._onRemoteStreamStarted = function(event) {
  * @private
  * @param {Object} event
  */
-MatrixCall.prototype._onRemoteStreamEnded = function(event) {
+MatrixCall.prototype._onRemoteStreamEnded = function (event) {
     debuglog("Remote stream ended");
     this.hangupParty = 'remote';
     setState(this, 'ended');
@@ -958,7 +920,7 @@ MatrixCall.prototype._onRemoteStreamEnded = function(event) {
  * @private
  * @param {Object} event
  */
-MatrixCall.prototype._onRemoteStreamTrackStarted = function(event) {
+MatrixCall.prototype._onRemoteStreamTrackStarted = function (event) {
     setState(this, 'connected');
 };
 
@@ -967,7 +929,7 @@ MatrixCall.prototype._onRemoteStreamTrackStarted = function(event) {
  * @protected
  * @param {Object} msg
  */
-MatrixCall.prototype._onHangupReceived = function(msg) {
+MatrixCall.prototype._onHangupReceived = function (msg) {
     debuglog("Hangup received");
     terminate(this, "remote", msg.reason, true);
 };
@@ -977,19 +939,19 @@ MatrixCall.prototype._onHangupReceived = function(msg) {
  * @protected
  * @param {Object} msg
  */
-MatrixCall.prototype._onAnsweredElsewhere = function(msg) {
+MatrixCall.prototype._onAnsweredElsewhere = function (msg) {
     debuglog("Answered elsewhere");
     terminate(this, "remote", "answered_elsewhere", true);
 };
 
-const setTracksEnabled = function(tracks, enabled) {
-    for (let i = 0; i < tracks.length; i++) {
+var setTracksEnabled = function setTracksEnabled(tracks, enabled) {
+    for (var i = 0; i < tracks.length; i++) {
         tracks[i].enabled = enabled;
     }
 };
 
-const isTracksEnabled = function(tracks) {
-    for (let i = 0; i < tracks.length; i++) {
+var isTracksEnabled = function isTracksEnabled(tracks) {
+    for (var i = 0; i < tracks.length; i++) {
         if (tracks[i].enabled) {
             return true; // at least one track is enabled
         }
@@ -997,8 +959,8 @@ const isTracksEnabled = function(tracks) {
     return false;
 };
 
-const setState = function(self, state) {
-    const oldState = self.state;
+var setState = function setState(self, state) {
+    var oldState = self.state;
     self.state = state;
     self.emit("state", state, oldState);
 };
@@ -1010,11 +972,11 @@ const setState = function(self, state) {
  * @param {Object} content
  * @return {Promise}
  */
-const sendEvent = function(self, eventType, content) {
+var sendEvent = function sendEvent(self, eventType, content) {
     return self.client.sendEvent(self.roomId, eventType, content);
 };
 
-const sendCandidate = function(self, content) {
+var sendCandidate = function sendCandidate(self, content) {
     // Sends candidates with are sent in a special way because we try to amalgamate
     // them into one message
     self.candidateSendQueue.push(content);
@@ -1026,13 +988,13 @@ const sendCandidate = function(self, content) {
     if (self.state == 'ringing') return;
 
     if (self.candidateSendTries === 0) {
-        setTimeout(function() {
+        setTimeout(function () {
             _sendCandidateQueue(self);
         }, 100);
     }
 };
 
-const terminate = function(self, hangupParty, hangupReason, shouldEmit) {
+var terminate = function terminate(self, hangupParty, hangupReason, shouldEmit) {
     if (self.getRemoteVideoElement()) {
         if (self.getRemoteVideoElement().pause) {
             self.pauseElement(self.getRemoteVideoElement(), "remoteVideo");
@@ -1063,10 +1025,10 @@ const terminate = function(self, hangupParty, hangupReason, shouldEmit) {
     }
 };
 
-const stopAllMedia = function(self) {
+var stopAllMedia = function stopAllMedia(self) {
     debuglog("stopAllMedia (stream=%s)", self.localAVStream);
     if (self.localAVStream) {
-        forAllTracksOnStream(self.localAVStream, function(t) {
+        forAllTracksOnStream(self.localAVStream, function (t) {
             if (t.stop) {
                 t.stop();
             }
@@ -1078,7 +1040,7 @@ const stopAllMedia = function(self) {
         }
     }
     if (self.screenSharingStream) {
-        forAllTracksOnStream(self.screenSharingStream, function(t) {
+        forAllTracksOnStream(self.screenSharingStream, function (t) {
             if (t.stop) {
                 t.stop();
             }
@@ -1088,14 +1050,14 @@ const stopAllMedia = function(self) {
         }
     }
     if (self.remoteAVStream) {
-        forAllTracksOnStream(self.remoteAVStream, function(t) {
+        forAllTracksOnStream(self.remoteAVStream, function (t) {
             if (t.stop) {
                 t.stop();
             }
         });
     }
     if (self.remoteAStream) {
-        forAllTracksOnStream(self.remoteAStream, function(t) {
+        forAllTracksOnStream(self.remoteAStream, function (t) {
             if (t.stop) {
                 t.stop();
             }
@@ -1103,13 +1065,13 @@ const stopAllMedia = function(self) {
     }
 };
 
-const _tryPlayRemoteStream = function(self) {
+var _tryPlayRemoteStream = function _tryPlayRemoteStream(self) {
     if (self.getRemoteVideoElement() && self.remoteAVStream) {
-        const player = self.getRemoteVideoElement();
+        var player = self.getRemoteVideoElement();
         player.autoplay = true;
         self.assignElement(player, self.remoteAVStream, "remoteVideo");
-        setTimeout(function() {
-            const vel = self.getRemoteVideoElement();
+        setTimeout(function () {
+            var vel = self.getRemoteVideoElement();
             if (vel.play) {
                 self.playElement(vel, "remoteVideo");
             }
@@ -1121,119 +1083,142 @@ const _tryPlayRemoteStream = function(self) {
     }
 };
 
-const _tryPlayRemoteAudioStream = async function(self) {
-    if (self.getRemoteAudioElement() && self.remoteAStream) {
-        const player = self.getRemoteAudioElement();
+var _tryPlayRemoteAudioStream = function () {
+    var _ref = (0, _bluebird.coroutine)(_regenerator2.default.mark(function _callee(self) {
+        var player;
+        return _regenerator2.default.wrap(function _callee$(_context) {
+            while (1) {
+                switch (_context.prev = _context.next) {
+                    case 0:
+                        if (!(self.getRemoteAudioElement() && self.remoteAStream)) {
+                            _context.next = 8;
+                            break;
+                        }
 
-        // if audioOutput is non-default:
-        if (audioOutput) await player.setSinkId(audioOutput);
+                        player = self.getRemoteAudioElement();
 
-        player.autoplay = true;
-        self.assignElement(player, self.remoteAStream, "remoteAudio");
-        setTimeout(function() {
-            const ael = self.getRemoteAudioElement();
-            if (ael.play) {
-                self.playElement(ael, "remoteAudio");
+                        // if audioOutput is non-default:
+
+                        if (!audioOutput) {
+                            _context.next = 5;
+                            break;
+                        }
+
+                        _context.next = 5;
+                        return (0, _bluebird.resolve)(player.setSinkId(audioOutput));
+
+                    case 5:
+
+                        player.autoplay = true;
+                        self.assignElement(player, self.remoteAStream, "remoteAudio");
+                        setTimeout(function () {
+                            var ael = self.getRemoteAudioElement();
+                            if (ael.play) {
+                                self.playElement(ael, "remoteAudio");
+                            }
+                            // OpenWebRTC does not support oniceconnectionstatechange yet
+                            if (self.webRtc.isOpenWebRTC()) {
+                                setState(self, 'connected');
+                            }
+                        }, 0);
+
+                    case 8:
+                    case "end":
+                        return _context.stop();
+                }
             }
-            // OpenWebRTC does not support oniceconnectionstatechange yet
-            if (self.webRtc.isOpenWebRTC()) {
-                setState(self, 'connected');
-            }
-        }, 0);
-    }
-};
+        }, _callee, this);
+    }));
 
-const checkForErrorListener = function(self) {
+    return function _tryPlayRemoteAudioStream(_x) {
+        return _ref.apply(this, arguments);
+    };
+}();
+
+var checkForErrorListener = function checkForErrorListener(self) {
     if (self.listeners("error").length === 0) {
-        throw new Error(
-            "You MUST attach an error listener using call.on('error', function() {})",
-        );
+        throw new Error("You MUST attach an error listener using call.on('error', function() {})");
     }
 };
 
-const callError = function(code, msg) {
-    const e = new Error(msg);
+var callError = function callError(code, msg) {
+    var e = new Error(msg);
     e.code = code;
     return e;
 };
 
-const debuglog = function() {
+var debuglog = function debuglog() {
     if (DEBUG) {
-        console.log(...arguments);
+        var _console;
+
+        (_console = console).log.apply(_console, arguments);
     }
 };
 
-const _sendCandidateQueue = function(self) {
+var _sendCandidateQueue = function _sendCandidateQueue(self) {
     if (self.candidateSendQueue.length === 0) {
         return;
     }
 
-    const cands = self.candidateSendQueue;
+    var cands = self.candidateSendQueue;
     self.candidateSendQueue = [];
     ++self.candidateSendTries;
-    const content = {
+    var content = {
         version: 0,
         call_id: self.callId,
-        candidates: cands,
+        candidates: cands
     };
     debuglog("Attempting to send " + cands.length + " candidates");
-    sendEvent(self, 'm.call.candidates', content).then(function() {
+    sendEvent(self, 'm.call.candidates', content).then(function () {
         self.candidateSendTries = 0;
         _sendCandidateQueue(self);
-    }, function(error) {
-        for (let i = 0; i < cands.length; i++) {
+    }, function (error) {
+        for (var i = 0; i < cands.length; i++) {
             self.candidateSendQueue.push(cands[i]);
         }
 
         if (self.candidateSendTries > 5) {
-            debuglog(
-                "Failed to send candidates on attempt %s. Giving up for now.",
-                self.candidateSendTries,
-            );
+            debuglog("Failed to send candidates on attempt %s. Giving up for now.", self.candidateSendTries);
             self.candidateSendTries = 0;
             return;
         }
 
-        const delayMs = 500 * Math.pow(2, self.candidateSendTries);
+        var delayMs = 500 * Math.pow(2, self.candidateSendTries);
         ++self.candidateSendTries;
         debuglog("Failed to send candidates. Retrying in " + delayMs + "ms");
-        setTimeout(function() {
+        setTimeout(function () {
             _sendCandidateQueue(self);
         }, delayMs);
     });
 };
 
-const _placeCallWithConstraints = function(self, constraints) {
+var _placeCallWithConstraints = function _placeCallWithConstraints(self, constraints) {
     self.client.callList[self.callId] = self;
-    self.webRtc.getUserMedia(
-        constraints,
-        hookCallback(self, self._maybeGotUserMediaForInvite),
-        hookCallback(self, self._maybeGotUserMediaForInvite),
-    );
+    self.webRtc.getUserMedia(constraints, hookCallback(self, self._maybeGotUserMediaForInvite), hookCallback(self, self._maybeGotUserMediaForInvite));
     setState(self, 'wait_local_media');
     self.direction = 'outbound';
     self.config = constraints;
 };
 
-const _createPeerConnection = function(self) {
-    let servers = self.turnServers;
+var _createPeerConnection = function _createPeerConnection(self) {
+    var servers = self.turnServers;
     if (self.webRtc.vendor === "mozilla") {
         // modify turnServers struct to match what mozilla expects.
         servers = [];
-        for (let i = 0; i < self.turnServers.length; i++) {
-            for (let j = 0; j < self.turnServers[i].urls.length; j++) {
+        for (var i = 0; i < self.turnServers.length; i++) {
+            for (var j = 0; j < self.turnServers[i].urls.length; j++) {
                 servers.push({
                     url: self.turnServers[i].urls[j],
                     username: self.turnServers[i].username,
-                    credential: self.turnServers[i].credential,
+                    credential: self.turnServers[i].credential
                 });
             }
         }
     }
 
-    const pc = new self.webRtc.RtcPeerConnection({
+    var pc = new self.webRtc.RtcPeerConnection({
         iceTransportPolicy: self.forceTURN ? 'relay' : undefined,
-        iceServers: servers,
+        iceServers: servers
     });
     pc.oniceconnectionstatechange = hookCallback(self, self._onIceConnectionStateChanged);
     pc.onsignalingstatechange = hookCallback(self, self._onSignallingStateChanged);
@@ -1242,13 +1227,10 @@ const _createPeerConnection = function(self) {
     return pc;
 };
 
-const _getScreenSharingConstraints = function(call) {
-    const screen = global.screen;
+var _getScreenSharingConstraints = function _getScreenSharingConstraints(call) {
+    var screen = global.screen;
     if (!screen) {
-        call.emit("error", callError(
-            MatrixCall.ERR_NO_USER_MEDIA,
-            "Couldn't determine screen sharing constaints.",
-        ));
+        call.emit("error", callError(MatrixCall.ERR_NO_USER_MEDIA, "Couldn't determine screen sharing constaints."));
         return;
     }
 
@@ -1261,59 +1243,59 @@ const _getScreenSharingConstraints = function(call) {
                 maxWidth: screen.width,
                 maxHeight: screen.height,
                 minFrameRate: 1,
-                maxFrameRate: 10,
-            },
-        },
+                maxFrameRate: 10
+            }
+        }
     };
 };
 
-const _getUserMediaVideoContraints = function(callType) {
-    const isWebkit = !!global.window.navigator.webkitGetUserMedia;
+var _getUserMediaVideoContraints = function _getUserMediaVideoContraints(callType) {
+    var isWebkit = !!global.window.navigator.webkitGetUserMedia;
 
     switch (callType) {
         case 'voice':
             return {
                 audio: {
-                    deviceId: audioInput ? {exact: audioInput} : undefined,
-                }, video: false,
+                    deviceId: audioInput ? { exact: audioInput } : undefined
+                }, video: false
             };
         case 'video':
             return {
                 audio: {
-                    deviceId: audioInput ? {exact: audioInput} : undefined,
+                    deviceId: audioInput ? { exact: audioInput } : undefined
                 }, video: {
-                    deviceId: videoInput ? {exact: videoInput} : undefined,
+                    deviceId: videoInput ? { exact: videoInput } : undefined,
                     /* We want 640x360.  Chrome will give it only if we ask exactly,
                        FF refuses entirely if we ask exactly, so have to ask for ideal
                        instead */
                     width: isWebkit ? { exact: 640 } : { ideal: 640 },
-                    height: isWebkit ? { exact: 360 } : { ideal: 360 },
-                },
+                    height: isWebkit ? { exact: 360 } : { ideal: 360 }
+                }
             };
     }
 };
 
-const hookCallback = function(call, fn) {
-    return function() {
+var hookCallback = function hookCallback(call, fn) {
+    return function () {
         return fn.apply(call, arguments);
     };
 };
 
-const forAllVideoTracksOnStream = function(s, f) {
-    const tracks = s.getVideoTracks();
-    for (let i = 0; i < tracks.length; i++) {
+var forAllVideoTracksOnStream = function forAllVideoTracksOnStream(s, f) {
+    var tracks = s.getVideoTracks();
+    for (var i = 0; i < tracks.length; i++) {
         f(tracks[i]);
     }
 };
 
-const forAllAudioTracksOnStream = function(s, f) {
-    const tracks = s.getAudioTracks();
-    for (let i = 0; i < tracks.length; i++) {
+var forAllAudioTracksOnStream = function forAllAudioTracksOnStream(s, f) {
+    var tracks = s.getAudioTracks();
+    for (var i = 0; i < tracks.length; i++) {
         f(tracks[i]);
     }
 };
 
-const forAllTracksOnStream = function(s, f) {
+var forAllTracksOnStream = function forAllTracksOnStream(s, f) {
     forAllVideoTracksOnStream(s, f);
     forAllAudioTracksOnStream(s, f);
 };
@@ -1321,30 +1303,36 @@ const forAllTracksOnStream = function(s, f) {
 /** The MatrixCall class. */
 module.exports.MatrixCall = MatrixCall;
 
-let audioOutput;
-let audioInput;
-let videoInput;
+var audioOutput = void 0;
+var audioInput = void 0;
+var videoInput = void 0;
 /**
  * Set an audio output device to use for MatrixCalls
  * @function
  * @param {string=} deviceId the identifier for the device
  * undefined treated as unset
  */
-module.exports.setAudioOutput = function(deviceId) { audioOutput = deviceId; };
+module.exports.setAudioOutput = function (deviceId) {
+    audioOutput = deviceId;
+};
 /**
  * Set an audio input device to use for MatrixCalls
  * @function
  * @param {string=} deviceId the identifier for the device
  * undefined treated as unset
  */
-module.exports.setAudioInput = function(deviceId) { audioInput = deviceId; };
+module.exports.setAudioInput = function (deviceId) {
+    audioInput = deviceId;
+};
 /**
  * Set a video input device to use for MatrixCalls
  * @function
  * @param {string=} deviceId the identifier for the device
  * undefined treated as unset
  */
-module.exports.setVideoInput = function(deviceId) { videoInput = deviceId; };
+module.exports.setVideoInput = function (deviceId) {
+    videoInput = deviceId;
+};
 
 /**
  * Create a new Matrix call for the browser.
@@ -1354,44 +1342,34 @@ module.exports.setVideoInput = function(deviceId) { videoInput = deviceId; };
  * @param {boolean} options.forceTURN DEPRECATED whether relay through TURN should be forced. This option is deprecated - use opts.forceTURN when creating the matrix client since it's only possible to set this option on outbound calls.
  * @return {MatrixCall} the call or null if the browser doesn't support calling.
  */
-module.exports.createNewMatrixCall = function(client, roomId, options) {
-    const w = global.window;
-    const doc = global.document;
+module.exports.createNewMatrixCall = function (client, roomId, options) {
+    var w = global.window;
+    var doc = global.document;
     if (!w || !doc) {
         return null;
     }
-    const webRtc = {};
-    webRtc.isOpenWebRTC = function() {
-        const scripts = doc.getElementById("script");
+    var webRtc = {};
+    webRtc.isOpenWebRTC = function () {
+        var scripts = doc.getElementById("script");
         if (!scripts || !scripts.length) {
             return false;
         }
-        for (let i = 0; i < scripts.length; i++) {
+        for (var i = 0; i < scripts.length; i++) {
             if (scripts[i].src.indexOf("owr.js") > -1) {
                 return true;
             }
         }
         return false;
     };
-    const getUserMedia = (
-        w.navigator.getUserMedia || w.navigator.webkitGetUserMedia ||
-        w.navigator.mozGetUserMedia
-    );
+    var getUserMedia = w.navigator.getUserMedia || w.navigator.webkitGetUserMedia || w.navigator.mozGetUserMedia;
     if (getUserMedia) {
-        webRtc.getUserMedia = function() {
+        webRtc.getUserMedia = function () {
             return getUserMedia.apply(w.navigator, arguments);
         };
     }
-    webRtc.RtcPeerConnection = (
-        w.RTCPeerConnection || w.webkitRTCPeerConnection || w.mozRTCPeerConnection
-    );
-    webRtc.RtcSessionDescription = (
-        w.RTCSessionDescription || w.webkitRTCSessionDescription ||
-        w.mozRTCSessionDescription
-    );
-    webRtc.RtcIceCandidate = (
-        w.RTCIceCandidate || w.webkitRTCIceCandidate || w.mozRTCIceCandidate
-    );
+    webRtc.RtcPeerConnection = w.RTCPeerConnection || w.webkitRTCPeerConnection || w.mozRTCPeerConnection;
+    webRtc.RtcSessionDescription = w.RTCSessionDescription || w.webkitRTCSessionDescription || w.mozRTCSessionDescription;
+    webRtc.RtcIceCandidate = w.RTCIceCandidate || w.webkitRTCIceCandidate || w.mozRTCIceCandidate;
     webRtc.vendor = null;
     if (w.mozRTCPeerConnection) {
         webRtc.vendor = "mozilla";
@@ -1400,21 +1378,21 @@ module.exports.createNewMatrixCall = function(client, roomId, options) {
     } else if (w.RTCPeerConnection) {
         webRtc.vendor = "generic";
     }
-    if (!webRtc.RtcIceCandidate || !webRtc.RtcSessionDescription ||
-            !webRtc.RtcPeerConnection || !webRtc.getUserMedia) {
+    if (!webRtc.RtcIceCandidate || !webRtc.RtcSessionDescription || !webRtc.RtcPeerConnection || !webRtc.getUserMedia) {
         return null; // WebRTC is not supported.
     }
 
-    const optionsForceTURN = options ? options.forceTURN : false;
+    var optionsForceTURN = options ? options.forceTURN : false;
 
-    const opts = {
+    var opts = {
         webRtc: webRtc,
         client: client,
         URL: w.URL,
         roomId: roomId,
         turnServers: client.getTurnServers(),
         // call level options
-        forceTURN: client._forceTURN || optionsForceTURN,
+        forceTURN: client._forceTURN || optionsForceTURN
     };
     return new MatrixCall(opts);
 };
+//# sourceMappingURL=call.js.map
